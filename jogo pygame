@@ -1,0 +1,155 @@
+import pygame
+import sys
+import random
+
+pygame.init()
+
+LARGURA = 900
+ALTURA = 800
+janela = pygame.display.set_mode((LARGURA, ALTURA))
+pygame.display.set_caption('Coleta + Inimigo + Movimentos')
+
+clock = pygame.time.Clock()
+
+fonte = pygame.font.Font(None, 36)
+fonte_titulo = pygame.font.Font(None, 48)
+
+sprite_jogador = pygame.image.load("New Piskel-1.png(1).png").convert_alpha()
+sprite_inimigo = pygame.image.load("New Piskel-1.png.png").convert_alpha()
+sprite_dinheiro = pygame.image.load("New Piskel-3.png.png").convert_alpha()
+
+sprite_jogador = pygame.transform.scale(sprite_jogador, (60, 60))
+sprite_inimigo  = pygame.transform.scale(sprite_inimigo,  (60, 80))
+sprite_dinheiro = pygame.transform.scale(sprite_dinheiro, (30, 30))
+
+
+player = pygame.Rect(450, 400, 60, 60)
+velocidade_normal = 5
+
+inimigo = pygame.Rect(LARGURA - 80, 400, 60, 80)
+vel_inimigo = 4
+
+projetis = []
+vel_proj = 7
+intervalo_tiro = 700
+
+inicio_jogo = pygame.time.get_ticks()
+primeiro_tiro_liberado = False
+tempo_ultimo_tiro = 0
+
+pontos = 0
+pontuacao_max = 100
+
+def criar_itens(qtd=20):
+    novos = []
+    for _ in range(qtd):
+        x = random.randint(50, LARGURA - 150)
+        y = random.randint(100, ALTURA - 100)
+        novos.append(pygame.Rect(x, y, 30, 30))
+    return novos
+
+itens = criar_itens()
+
+movimentos = ["W - cima", "S - baixo", "A - esquerda", "D - direita", "SHIFT - dash"]
+
+def atirar():
+    proj = pygame.Rect(inimigo.x - 20, inimigo.centery - 5, 20, 10)
+    projetis.append(proj)
+
+
+cont = True
+while cont:
+    dt = clock.tick(60)
+    tempo_atual = pygame.time.get_ticks()
+
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            pygame.quit()
+            sys.exit()
+
+    teclas = pygame.key.get_pressed()
+
+
+    if teclas[pygame.K_w]:
+        player.y -= velocidade_normal
+    if teclas[pygame.K_s]:
+        player.y += velocidade_normal
+    if teclas[pygame.K_a]:
+        player.x -= velocidade_normal
+    if teclas[pygame.K_d]:
+        player.x += velocidade_normal
+
+    player.clamp_ip(janela.get_rect())
+
+
+    if inimigo.centery < player.centery:
+        inimigo.centery += vel_inimigo
+    elif inimigo.centery > player.centery:
+        inimigo.centery -= vel_inimigo
+
+
+    if not primeiro_tiro_liberado and (tempo_atual - inicio_jogo >= 1000):
+        primeiro_tiro_liberado = True
+        tempo_ultimo_tiro = tempo_atual
+
+
+    if primeiro_tiro_liberado:
+        if tempo_atual - tempo_ultimo_tiro >= intervalo_tiro:
+            atirar()
+            tempo_ultimo_tiro = tempo_atual
+
+
+    for proj in projetis[:]:
+        proj.x -= vel_proj
+
+        if proj.right < 0:
+            projetis.remove(proj)
+
+        if proj.colliderect(player):
+            print("O jogador morreu!")
+            pygame.quit()
+            sys.exit()
+
+    for item in itens[:]:
+        if player.colliderect(item):
+            pontos += 1
+            itens.remove(item)
+
+    if len(itens) == 0:
+        itens = criar_itens()
+
+    if pontos >= pontuacao_max:
+        print("Parabéns! Você coletou 100 itens!")
+        pygame.quit()
+        sys.exit()
+    janela.fill((0, 0, 0))
+
+    texto_pontos = fonte_titulo.render(f"Pontos: {pontos}", True, (255, 255, 255))
+    janela.blit(texto_pontos, (20, 10))
+
+    texto_topo = fonte_titulo.render('Desvie dos tiros e colete itens!', True, (255, 255, 255))
+    janela.blit(texto_topo, (20, 60))
+
+  
+    base_y = ALTURA - 150
+    base_x = 10
+    largura_tabela = 250
+    altura_tabela = 130
+    pygame.draw.rect(janela, (50, 50, 50), (base_x, base_y, largura_tabela, altura_tabela))
+    titulo_mov = fonte.render("Movimentos:", True, (255, 255, 255))
+    janela.blit(titulo_mov, (base_x + 10, base_y + 10))
+
+    for i, mov in enumerate(movimentos):
+        texto_mov = fonte.render(mov, True, (255, 255, 255))
+        janela.blit(texto_mov, (base_x + 10, base_y + 40 + i * 20))
+
+    janela.blit(sprite_jogador, player)
+    janela.blit(sprite_inimigo, inimigo)
+
+    for item in itens:
+        janela.blit(sprite_dinheiro, item)
+
+    for proj in projetis:
+        pygame.draw.rect(janela, (255, 255, 0), proj)
+
+    pygame.display.update()
